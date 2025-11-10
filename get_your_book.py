@@ -24,7 +24,7 @@ DATA_PATH = DATA_BASE / "ml_outputs"
 # =======================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv(DATA_BASE / "books_final_version.csv")
+    df = pd.read_csv(DATA_BASE / "books_final_version_cleaned.csv")
     df["title"] = df["title"].astype(str).str.strip()
     df["author"] = df["author"].fillna("Unknown").astype(str)
     df["genre"] = df["genre"].fillna("other").astype(str)
