@@ -85,6 +85,10 @@ ss.setdefault("selected_uid", None)
 # =======================================================
 # RENDER CARD
 # =======================================================
+def set_details(uid):
+    ss.page = "details"
+    ss.selected_uid = uid
+
 def render_card(row):
     st.image(row.cover_image_uri, width=150)
 
@@ -100,17 +104,13 @@ def render_card(row):
     short_desc = row.description[:180] + "…" if len(row.description) > 180 else row.description
     st.write(short_desc)
 
-    colA, colB = st.columns(2)
+    # ✅ Apenas 1 botão
+    st.button(
+        "📘 View details",
+        key=f"details_{row.uid}",
+        on_click=lambda uid=row.uid: set_details(uid)
+    )
 
-    with colA:
-        if st.button("📘 View details", key=f"details_{row.uid}"):
-            ss.page = "details"
-            ss.selected_uid = row.uid
-
-    with colB:
-        if st.button("🔮 More like this", key=f"more_{row.uid}"):
-            ss.page = "details"
-            ss.selected_uid = row.uid
 
 
 # =======================================================
@@ -119,6 +119,7 @@ def render_card(row):
 def page_home():
     st.title("📚 Get Your Book Recommender")
 
+    # ==== FILTROS ====
     col1, col2, col3 = st.columns([2, 2, 3])
 
     with col1:
@@ -132,6 +133,13 @@ def page_home():
     with col3:
         search = st.text_input("🔎 Search by title", "")
 
+    # ===== RESETAR PAGINA QUANDO FILTROS MUDAM =====
+    current_filter = (selected_genre, selected_author, search)
+    if ss.get("last_filter") != current_filter:
+        ss.current_page = 1
+        ss.last_filter = current_filter
+
+    # ==== FILTRAGEM ====
     filtered = df.copy()
     if selected_genre != "All":
         filtered = filtered[filtered["genre"] == selected_genre]
@@ -142,13 +150,51 @@ def page_home():
 
     st.markdown(f"### {len(filtered)} books found")
 
-    books = list(filtered.itertuples(index=False))
+    # ==== PAGINAÇÃO ====
+    books_per_page = 24
+    total_books = len(filtered)
+    total_pages = max(1, (total_books + books_per_page - 1) // books_per_page)
 
-    for i in range(0, len(books), 4):
+    if "current_page" not in ss:
+        ss.current_page = 1
+
+    # ==== CALCULAR FAIXA DE LIVROS ====
+    start = (ss.current_page - 1) * books_per_page
+    end = start + books_per_page
+
+    books_to_display = list(filtered.iloc[start:end].itertuples(index=False))
+
+    # ==== MOSTRAR LIVROS ====
+    for i in range(0, len(books_to_display), 4):
         cols = st.columns(4)
-        for col, row in zip(cols, books[i:i+4]):
+        for col, row in zip(cols, books_to_display[i:i+4]):
             with col:
                 render_card(row)
+
+    # ======= BOTÕES DE NAVEGAÇÃO NO FINAL =======
+    nav = st.columns([1, 2, 1])
+
+    with nav[0]:
+        st.button(
+            "⬅️ Previous page",
+            disabled=ss.current_page <= 1,
+            on_click=lambda: ss.update({"current_page": ss.current_page - 1})
+        )
+
+    with nav[1]:
+        st.markdown(
+            f"<div style='text-align:center; font-size:18px;'>Page {ss.current_page} of {total_pages}</div>",
+            unsafe_allow_html=True
+        )
+
+    with nav[2]:
+        st.button(
+            "Next page ➡️",
+            disabled=ss.current_page >= total_pages,
+            on_click=lambda: ss.update({"current_page": ss.current_page + 1})
+        )
+
+
 
 
 # =======================================================
